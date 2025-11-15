@@ -2,6 +2,7 @@ package com.balex.rag.mapper;
 
 import com.balex.rag.model.dto.UserDTO;
 import com.balex.rag.model.dto.UserProfileDTO;
+import com.balex.rag.model.dto.UserSearchDTO;
 import com.balex.rag.model.entity.User;
 import com.balex.rag.model.enums.RegistrationStatus;
 import com.balex.rag.model.request.user.NewUserRequest;
@@ -33,7 +34,9 @@ public interface UserMapper {
     @Mapping(target = "created", ignore = true)
     void updateUser(@MappingTarget User user, UpdateUserRequest request);
 
-    @Mapping(target = "roles", expression = "java(mapRoles(user.getRoles()))")
+    @Mapping(source = "deleted", target = "isDeleted")
+    UserSearchDTO toUserSearchDto(User user);
+
     @Mapping(target = "username", source = "user.username")
     @Mapping(target = "email", source = "user.email")
     @Mapping(target = "token", source = "token")
@@ -41,7 +44,6 @@ public interface UserMapper {
     UserProfileDTO toUserProfileDto(User user, String token, String refreshToken);
 
     @Mapping(target = "password", ignore = true)
-    @Mapping(target = "roles", ignore = true)
     @Mapping(target = "registrationStatus", expression = "java(RegistrationStatus.ACTIVE)")
     User fromDto(RegistrationUserRequest request);
 

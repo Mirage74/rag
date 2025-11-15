@@ -2,9 +2,12 @@ package com.balex.rag.controller;
 
 import com.balex.rag.model.constants.ApiLogMessage;
 import com.balex.rag.model.dto.UserDTO;
+import com.balex.rag.model.dto.UserSearchDTO;
 import com.balex.rag.model.request.user.NewUserRequest;
 import com.balex.rag.model.request.user.UpdateUserRequest;
+import com.balex.rag.model.response.PaginationResponse;
 import com.balex.rag.model.response.RagResponse;
+import com.balex.rag.service.UserService;
 import com.balex.rag.utils.ApiUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -62,26 +65,13 @@ public class UserController {
     }
 
     @GetMapping("${end.points.all}")
-    public ResponseEntity<IamResponse<PaginationResponse<UserSearchDTO>>> getAllUsers(
+    public ResponseEntity<RagResponse<PaginationResponse<UserSearchDTO>>> getAllUsers(
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "limit", defaultValue = "10") int limit) {
         log.trace(ApiLogMessage.NAME_OF_CURRENT_METHOD.getValue(), ApiUtils.getMethodName());
 
         Pageable pageable = PageRequest.of(page, limit);
-        IamResponse<PaginationResponse<UserSearchDTO>> response = userService.findAllUsers(pageable);
+        RagResponse<PaginationResponse<UserSearchDTO>> response = userService.findAllUsers(pageable);
         return ResponseEntity.ok(response);
     }
-
-    @PostMapping("${end.points.search}")
-    public ResponseEntity<IamResponse<PaginationResponse<UserSearchDTO>>> searchUsers(
-            @RequestBody @Valid UserSearchRequest request,
-            @RequestParam(name = "page", defaultValue = "0") int page,
-            @RequestParam(name = "limit", defaultValue = "10") int limit) {
-        log.trace(ApiLogMessage.NAME_OF_CURRENT_METHOD.getValue(), ApiUtils.getMethodName());
-
-        Pageable pageable = PageRequest.of(page, limit);
-        IamResponse<PaginationResponse<UserSearchDTO>> response = userService.searchUsers(request, pageable);
-        return ResponseEntity.ok(response);
-    }
-
 }

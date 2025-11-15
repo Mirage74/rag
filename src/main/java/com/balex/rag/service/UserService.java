@@ -1,8 +1,10 @@
 package com.balex.rag.service;
 
 import com.balex.rag.model.dto.UserDTO;
+import com.balex.rag.model.dto.UserSearchDTO;
 import com.balex.rag.model.request.user.NewUserRequest;
 import com.balex.rag.model.request.user.UpdateUserRequest;
+import com.balex.rag.model.response.PaginationResponse;
 import com.balex.rag.model.response.RagResponse;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.data.domain.Pageable;
@@ -18,9 +20,7 @@ public interface UserService extends UserDetailsService {
 
     void softDeleteUser(Integer userId);
 
-    IamResponse<PaginationResponse<UserSearchDTO>> findAllUsers(Pageable pageable);
-
-    IamResponse<PaginationResponse<UserSearchDTO>> searchUsers(UserSearchRequest request, Pageable pageable);
+    RagResponse<PaginationResponse<UserSearchDTO>> findAllUsers(Pageable pageable);
 
 }
 
