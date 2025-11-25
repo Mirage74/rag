@@ -44,6 +44,11 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             @NotNull FilterChain filterChain)
             throws ServletException, IOException {
 
+        log.info("JWT filter: method={}, uri={}, header={}",
+                request.getMethod(),
+                request.getRequestURI(),
+                request.getHeader(AUTHORIZATION_HEADER));
+
         Optional<String> authHeader = Optional.ofNullable(request.getHeader(AUTHORIZATION_HEADER));
         String requestURI = request.getRequestURI();
 

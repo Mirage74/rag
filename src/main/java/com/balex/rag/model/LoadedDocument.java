@@ -1,5 +1,6 @@
 package com.balex.rag.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -17,7 +18,6 @@ import java.time.LocalDateTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-
 public class LoadedDocument {
 
     @Id
@@ -26,12 +26,12 @@ public class LoadedDocument {
 
     private String filename;
     private String contentHash;
-
     private String documentType;
-
     private int chunkCount;
 
     @CreationTimestamp
-    private LocalDateTime loadedAt ;
-}
+    private LocalDateTime loadedAt;
 
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+}
