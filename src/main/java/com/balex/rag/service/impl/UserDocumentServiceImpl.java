@@ -1,10 +1,13 @@
 package com.balex.rag.service.impl;
 
 import com.balex.rag.model.LoadedDocument;
+import com.balex.rag.model.constants.ApiLogMessage;
+import com.balex.rag.model.exception.UploadException;
 import com.balex.rag.model.response.RagResponse;
 import com.balex.rag.repo.DocumentRepository;
 import com.balex.rag.service.UserDocumentService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.reader.TextReader;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
@@ -20,12 +23,19 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.balex.rag.model.constants.ApiConstants.*;
+import static com.balex.rag.model.constants.ApiErrorMessage.UPLOADED_FILENAME_EMPTY;
+import static com.balex.rag.model.constants.ApiErrorMessage.UPLOAD_FILE_READ_ERROR;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserDocumentServiceImpl implements UserDocumentService {
 
     private final DocumentRepository documentRepository;
     private final VectorStore vectorStore;
+    private final static String TXT_EXTENSION = "txt";
+    private final static String USER_ID_FIELD_NAME = "user_id";
 
     @Override
     @Transactional
@@ -39,7 +49,8 @@ public class UserDocumentServiceImpl implements UserDocumentService {
 
             String filename = file.getOriginalFilename();
             if (filename == null) {
-                filename = "unknown";
+                filename = EMPTY_FILENAME;
+                log.trace(ApiLogMessage.NAME_OF_CURRENT_METHOD.getValue(), UPLOADED_FILENAME_EMPTY);
             }
             final String finalFilename = filename;
 
@@ -47,7 +58,7 @@ public class UserDocumentServiceImpl implements UserDocumentService {
             try {
                 content = file.getBytes();
             } catch (IOException e) {
-                throw new RuntimeException("Failed to read file: " + finalFilename, e);
+                throw new UploadException(UPLOAD_FILE_READ_ERROR + finalFilename + e);
             }
 
             String contentHash = DigestUtils.md5DigestAsHex(content);
@@ -70,7 +81,7 @@ public class UserDocumentServiceImpl implements UserDocumentService {
             List<Document> chunks = splitter.apply(docs);
 
             for (Document c : chunks) {
-                c.getMetadata().put("user_id", userId);
+                c.getMetadata().put(USER_ID_FIELD_NAME, userId);
             }
 
             acceptWithRetry(vectorStore, chunks, 3, 1500);
@@ -88,8 +99,8 @@ public class UserDocumentServiceImpl implements UserDocumentService {
         }
 
         String message = processedFiles.isEmpty()
-                ? "No new documents uploaded"
-                : "Documents uploaded: " + String.join(", ", processedFiles);
+                ? NO_NEW_DOCUMENTS_UPLOADED
+                : DOCUMENTS_UPLOADED + String.join(", ", processedFiles);
 
         return RagResponse.createSuccessful(message);
     }
@@ -97,7 +108,7 @@ public class UserDocumentServiceImpl implements UserDocumentService {
     private String getExtensionOrTxt(String filename) {
         int idx = filename.lastIndexOf('.');
         if (idx == -1 || idx == filename.length() - 1) {
-            return "txt";
+            return TXT_EXTENSION;
         }
         return filename.substring(idx + 1);
     }

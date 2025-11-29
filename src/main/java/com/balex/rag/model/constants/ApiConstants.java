@@ -7,6 +7,9 @@ import lombok.NoArgsConstructor;
 public final class ApiConstants {
 
     public static final String UNDEFINED = "undefined";
+    public static final String EMPTY_FILENAME = "unknown";
+    public static final String NO_NEW_DOCUMENTS_UPLOADED = "No new documents uploaded";
+    public static final String DOCUMENTS_UPLOADED = "Documents uploaded: ";
     public static final String ANSI_RED = "\u001B[31m";
     public static final String ANSI_WHITE = "\u001B[37m";
     public static final String BREAK_LINE = "\n";

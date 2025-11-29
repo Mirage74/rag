@@ -17,6 +17,11 @@ public enum ApiErrorMessage {
     USER_ROLE_NOT_FOUND("Role was not found"),
     COMMENT_NOT_FOUND_BY_ID("Comment with ID: %s was not found"),
 
+    TOKENIZATION_ERROR("Tokenization failed"),
+
+    UPLOADED_FILENAME_EMPTY("Filename is empty"),
+    UPLOAD_FILE_READ_ERROR("Failed to read file"),
+
     INVALID_TOKEN_SIGNATURE("Invalid token signature"),
     ERROR_DURING_JWT_PROCESSING("An unexpected error occurred during JWT processing"),
     TOKEN_EXPIRED("Token expired."),

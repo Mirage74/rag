@@ -52,7 +52,7 @@ public class DocumentUploadController {
         Integer userId = apiUtils.getUserIdFromAuthentication();
         userDocumentService.processUploadedFiles(files, userId.longValue());
 
-        RagResponse<String> result = RagResponse.createSuccessful("Documents uploaded");
+        RagResponse<String> result = userDocumentService.processUploadedFiles(files, userId.longValue());
         return ResponseEntity.ok(result);
     }
 }

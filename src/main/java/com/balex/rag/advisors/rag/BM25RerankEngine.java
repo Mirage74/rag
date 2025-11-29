@@ -1,5 +1,6 @@
 package com.balex.rag.advisors.rag;
 
+import com.balex.rag.model.exception.RerankException;
 import com.github.pemistahl.lingua.api.Language;
 import com.github.pemistahl.lingua.api.LanguageDetector;
 import com.github.pemistahl.lingua.api.LanguageDetectorBuilder;
@@ -14,6 +15,8 @@ import org.springframework.ai.document.Document;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.balex.rag.model.constants.ApiErrorMessage.TOKENIZATION_ERROR;
 
 @Builder
 public class BM25RerankEngine {
@@ -117,7 +120,7 @@ public class BM25RerankEngine {
             }
             stream.end();
         } catch (IOException e) {
-            throw new RuntimeException("Tokenization failed", e);
+            throw new RerankException(TOKENIZATION_ERROR + e.toString());
         }
 
         return tokens;
