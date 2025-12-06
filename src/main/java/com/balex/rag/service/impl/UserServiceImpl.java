@@ -124,7 +124,7 @@ public class UserServiceImpl implements UserService {
 
     static UserDetails getUserDetails(String email, UserRepository userRepository) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new NotFoundException(ApiErrorMessage.EMAIL_NOT_FOUND.getMessage()));
+                .orElseThrow(() -> new NotFoundException(ApiErrorMessage.EMAIL_NOT_FOUND.getMessage(email)));
 
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);

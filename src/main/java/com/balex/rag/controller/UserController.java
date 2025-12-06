@@ -3,6 +3,7 @@ package com.balex.rag.controller;
 import com.balex.rag.model.constants.ApiLogMessage;
 import com.balex.rag.model.dto.UserDTO;
 import com.balex.rag.model.dto.UserSearchDTO;
+import com.balex.rag.model.enums.RegistrationStatus;
 import com.balex.rag.model.request.user.NewUserRequest;
 import com.balex.rag.model.request.user.UpdateUserRequest;
 import com.balex.rag.model.response.PaginationResponse;
@@ -17,6 +18,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
 
 @Slf4j
 @RestController
@@ -43,6 +46,23 @@ public class UserController {
         RagResponse<UserDTO> createdUser = userService.createUser(request);
         return ResponseEntity.ok(createdUser);
     }
+
+    @GetMapping("${end.points.userinfo}")
+    public ResponseEntity<RagResponse<UserDTO>> getUserInfo() {
+        log.trace(ApiLogMessage.NAME_OF_CURRENT_METHOD.getValue(), ApiUtils.getMethodName());
+
+        UserDTO dto = new UserDTO(
+                1,
+                "stub-user",
+                "stub@mail.com",
+                LocalDateTime.now(),
+                LocalDateTime.now(),
+                RegistrationStatus.ACTIVE
+        );
+
+        return ResponseEntity.ok(RagResponse.createSuccessful(dto));
+    }
+
 
     @PutMapping("${end.points.id}")
     public ResponseEntity<RagResponse<UserDTO>> updateUserById(
