@@ -4,7 +4,6 @@ import com.balex.rag.model.LoadedDocument;
 import com.balex.rag.model.UploadProgress;
 import com.balex.rag.model.constants.ApiLogMessage;
 import com.balex.rag.model.exception.UploadException;
-import com.balex.rag.model.response.RagResponse;
 import com.balex.rag.repo.DocumentRepository;
 import com.balex.rag.service.UserDocumentService;
 import lombok.RequiredArgsConstructor;
@@ -19,20 +18,18 @@ import org.springframework.core.io.Resource;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
-import reactor.core.scheduler.Schedulers;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.balex.rag.model.constants.ApiConstants.*;
+import static com.balex.rag.model.constants.ApiConstants.EMPTY_FILENAME;
 import static com.balex.rag.model.constants.ApiErrorMessage.UPLOADED_FILENAME_EMPTY;
 import static com.balex.rag.model.constants.ApiErrorMessage.UPLOAD_FILE_READ_ERROR;
 
@@ -50,104 +47,110 @@ public class UserDocumentServiceImpl implements UserDocumentService {
 
     private static final String STATUS_PROCESSING = "processing";
     private static final String STATUS_COMPLETED = "completed";
-    private static final String STATUS_ERROR = "error";
     private static final String STATUS_SKIPPED = "skipped";
+    private static final Long SSE_EMITTER_TIMEOUT_IN_MILLIS = 120000L;
 
     @Value("${app.document.chunk-size:200}")
     private int chunkSize;
 
-    @Override
-    @Transactional
-    public RagResponse<String> processUploadedFiles(List<MultipartFile> files, Long userId) {
-        List<String> processedFiles = new ArrayList<>();
+    public SseEmitter processUploadedFilesWithSse(List<MultipartFile> files, Long userId) {
+        SseEmitter emitter = new SseEmitter(SSE_EMITTER_TIMEOUT_IN_MILLIS);
 
-        for (MultipartFile file : files) {
-            if (file.isEmpty()) {
-                continue;
-            }
+        AtomicBoolean isCompleted = new AtomicBoolean(false);
 
-            String filename = getFilename(file);
-            boolean processed = processFileInternal(file, userId, filename);
-            if (processed) {
-                processedFiles.add(filename);
-            }
-        }
+        emitter.onCompletion(() -> {
+            log.debug("SSE completed");
+            isCompleted.set(true);
+        });
+        emitter.onTimeout(() -> {
+            log.debug("SSE timeout");
+            isCompleted.set(true);
+        });
+        emitter.onError(e -> {
+            // Не логируем как ошибку - клиент просто отключился
+            log.debug("SSE client disconnected: {}", e.getMessage());
+            isCompleted.set(true);
+        });
 
-        String message = processedFiles.isEmpty()
-                ? NO_NEW_DOCUMENTS_UPLOADED
-                : DOCUMENTS_UPLOADED + String.join(", ", processedFiles);
-
-        return RagResponse.createSuccessful(message);
-    }
-
-    @Override
-    public Flux<UploadProgress> processUploadedFilesWithProgress(List<MultipartFile> files, Long userId) {
         List<MultipartFile> validFiles = files.stream()
-                .filter(file -> !file.isEmpty())
+                .filter(f -> !f.isEmpty())
                 .toList();
 
-        if (validFiles.isEmpty()) {
-            return Flux.just(UploadProgress.builder()
-                    .percent(100)
-                    .processedFiles(0)
-                    .totalFiles(0)
-                    .currentFile("")
-                    .status(STATUS_COMPLETED)
-                    .build());
-        }
+        CompletableFuture.runAsync(() -> {
+            try {
+                int totalFiles = validFiles.size();
+                int processedCount = 0;
 
-        return Flux.<UploadProgress>create(sink ->
-                        processFilesWithSink(validFiles, userId, sink), FluxSink.OverflowStrategy.BUFFER)
-                .subscribeOn(Schedulers.boundedElastic());
-    }
+                for (MultipartFile file : validFiles) {
+                    if (isCompleted.get()) {
+                        log.debug("Upload cancelled, stopping at file: {}", processedCount);
+                        return;  // Просто выходим, не бросаем исключение
+                    }
 
-    private void processFilesWithSink(List<MultipartFile> validFiles, Long userId, FluxSink<UploadProgress> sink) {
-        int totalFiles = validFiles.size();
-        int processedCount = 0;
+                    String filename = getFilename(file);
 
-        try {
-            for (MultipartFile file : validFiles) {
-                String filename = getFilename(file);
+                    sendProgress(emitter, isCompleted, processedCount, totalFiles, filename, STATUS_PROCESSING);
 
-                emitProgress(sink, processedCount, totalFiles, filename, STATUS_PROCESSING);
+                    if (isCompleted.get()) return;  // Проверка после отправки
 
-                try {
-                    // Call through separate bean to get proper @Transactional proxy
                     boolean processed = transactionalHelper.processFileInTransaction(
                             file, userId, filename, this::processFileInternal);
 
                     processedCount++;
                     String status = processed ? STATUS_PROCESSING : STATUS_SKIPPED;
-                    emitProgress(sink, processedCount, totalFiles, filename, status);
+                    sendProgress(emitter, isCompleted, processedCount, totalFiles, filename, status);
+                }
 
-                } catch (UploadException e) {
-                    log.error("Error processing file: {}", filename, e);
-                    emitProgress(sink, processedCount, totalFiles, filename, STATUS_ERROR);
-                    processedCount++;
+                if (!isCompleted.get()) {
+                    try {
+                        emitter.send(SseEmitter.event()
+                                .data(UploadProgress.builder()
+                                        .percent(100)
+                                        .processedFiles(processedCount)
+                                        .totalFiles(totalFiles)
+                                        .currentFile("")
+                                        .status(STATUS_COMPLETED)
+                                        .build()));
+                        emitter.complete();
+                    } catch (IOException | IllegalStateException e) {
+                        log.debug("Could not send completion: {}", e.getMessage());
+                    }
+                }
+
+            } catch (Exception e) {
+                if (!isCompleted.get()) {
+                    log.error("SSE processing error", e);
+                    emitter.completeWithError(e);
                 }
             }
+        });
 
-            sink.next(UploadProgress.builder()
-                    .percent(100)
-                    .processedFiles(processedCount)
-                    .totalFiles(totalFiles)
-                    .currentFile("")
-                    .status(STATUS_COMPLETED)
-                    .build());
-
-            sink.complete();
-
-        } catch (Exception e) {
-            log.error("Unexpected error during file processing", e);
-            sink.error(e);
-        }
+        return emitter;
     }
 
-    /**
-     * Core file processing logic - package-private for transactional helper access.
-     *
-     * @return true if a file was processed, false if skipped (duplicate)
-     */
+    private void sendProgress(SseEmitter emitter, AtomicBoolean isCompleted,
+                              int processed, int total, String filename, String status) {
+        if (isCompleted.get()) {
+            return;
+        }
+
+        try {
+            int percent = total > 0 ? (int) Math.round((double) processed / total * 100) : 0;
+
+            emitter.send(SseEmitter.event()
+                    .data(UploadProgress.builder()
+                            .percent(percent)
+                            .processedFiles(processed)
+                            .totalFiles(total)
+                            .currentFile(filename)
+                            .status(status)
+                            .build()));
+        } catch (IOException | IllegalStateException e) {
+            // Client disconnected - this is normal for cancel
+            log.debug("Client disconnected: {}", e.getMessage());
+            isCompleted.set(true);
+        }
+    }
     boolean processFileInternal(MultipartFile file, Long userId, String filename) {
         byte[] content;
         try {
@@ -244,18 +247,4 @@ public class UserDocumentServiceImpl implements UserDocumentService {
         }
     }
 
-    private void emitProgress(FluxSink<UploadProgress> sink, int processedCount,
-                              int totalFiles, String filename, String status) {
-        int percent = totalFiles > 0
-                ? (int) Math.round((double) processedCount / totalFiles * 100)
-                : 0;
-
-        sink.next(UploadProgress.builder()
-                .percent(percent)
-                .processedFiles(processedCount)
-                .totalFiles(totalFiles)
-                .currentFile(filename)
-                .status(status)
-                .build());
-    }
 }
