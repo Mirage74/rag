@@ -2,6 +2,7 @@ package com.balex.rag.service;
 
 import com.balex.rag.model.dto.UserDTO;
 import com.balex.rag.model.dto.UserSearchDTO;
+import com.balex.rag.model.entity.UserInfo;
 import com.balex.rag.model.request.user.NewUserRequest;
 import com.balex.rag.model.request.user.UpdateUserRequest;
 import com.balex.rag.model.response.PaginationResponse;
@@ -21,6 +22,8 @@ public interface UserService extends UserDetailsService {
     void softDeleteUser(Integer userId);
 
     RagResponse<PaginationResponse<UserSearchDTO>> findAllUsers(Pageable pageable);
+
+    RagResponse<UserInfo> getUserInfo(String token);
 
 }
 

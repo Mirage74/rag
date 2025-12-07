@@ -4,13 +4,18 @@ import com.balex.rag.mapper.UserMapper;
 import com.balex.rag.model.constants.ApiErrorMessage;
 import com.balex.rag.model.dto.UserDTO;
 import com.balex.rag.model.dto.UserSearchDTO;
+import com.balex.rag.model.entity.LoadedDocumentInfo;
 import com.balex.rag.model.entity.User;
+import com.balex.rag.model.entity.UserInfo;
+import com.balex.rag.model.exception.InvalidTokenException;
 import com.balex.rag.model.exception.NotFoundException;
 import com.balex.rag.model.request.user.NewUserRequest;
 import com.balex.rag.model.request.user.UpdateUserRequest;
 import com.balex.rag.model.response.PaginationResponse;
 import com.balex.rag.model.response.RagResponse;
+import com.balex.rag.repo.DocumentRepository;
 import com.balex.rag.repo.UserRepository;
+import com.balex.rag.security.JwtTokenProvider;
 import com.balex.rag.security.validation.AccessValidator;
 import com.balex.rag.service.UserService;
 import com.balex.rag.service.model.exception.DataExistException;
@@ -27,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.List;
 
 import static com.balex.rag.model.constants.ApiConstants.USER_ROLE;
 
@@ -37,6 +43,8 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final AccessValidator accessValidator;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final DocumentRepository documentRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -135,5 +143,34 @@ public class UserServiceImpl implements UserService {
         );
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public RagResponse<UserInfo> getUserInfo(String token) {
+        if (token == null || token.isBlank()) {
+            throw new InvalidTokenException("Token is empty or null");
+        }
+
+        String cleanToken = token.startsWith("Bearer ")
+                ? token.substring(7)
+                : token;
+
+        String username = jwtTokenProvider.getUsername(cleanToken);
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new InvalidTokenException("User not found: " + username));
+
+        List<LoadedDocumentInfo> loadedFiles = documentRepository
+                .findByUserId(user.getId())
+                .stream()
+                .map(doc -> new LoadedDocumentInfo(doc.getId(), doc.getFilename()))
+                .toList();
+
+        UserInfo userInfo = new UserInfo(user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                loadedFiles);
+
+        return RagResponse.createSuccessful(userInfo);
+    }
 }
 
