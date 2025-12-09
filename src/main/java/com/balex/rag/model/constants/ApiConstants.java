@@ -26,5 +26,6 @@ public final class ApiConstants {
     public static final Integer REQUIRED_MIN_DIGITS_NUMBER_IN_PASSWORD = 1;
     public static final Integer REQUIRED_MIN_CHARACTERS_NUMBER_IN_PASSWORD = 1;
     public static final String USER_ROLE = "USER_ROLE";
+    public static final Integer MAX_FILES_ALLOWED_FOR_LOAD = 10;
 
 }

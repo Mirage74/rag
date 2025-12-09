@@ -55,6 +55,16 @@ public class UserController {
         return ResponseEntity.ok(userInfo);
     }
 
+    @DeleteMapping("${end.points.userinfo}")
+    public ResponseEntity<RagResponse<Integer>> deleteUserDocuments(
+            @RequestHeader("Authorization") String token) {
+        log.trace(ApiLogMessage.NAME_OF_CURRENT_METHOD.getValue(), ApiUtils.getMethodName());
+
+        RagResponse<Integer> deletedCount = userService.deleteUserDocuments(token);
+
+        return ResponseEntity.ok(deletedCount);
+    }
+
 
     @PutMapping("${end.points.id}")
     public ResponseEntity<RagResponse<UserDTO>> updateUserById(

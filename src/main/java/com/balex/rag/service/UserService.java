@@ -25,6 +25,8 @@ public interface UserService extends UserDetailsService {
 
     RagResponse<UserInfo> getUserInfo(String token);
 
+    RagResponse<Integer> deleteUserDocuments(String token);
+
 }
 
 

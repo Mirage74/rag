@@ -67,7 +67,6 @@ public class UserDocumentServiceImpl implements UserDocumentService {
             isCompleted.set(true);
         });
         emitter.onError(e -> {
-            // Не логируем как ошибку - клиент просто отключился
             log.debug("SSE client disconnected: {}", e.getMessage());
             isCompleted.set(true);
         });
@@ -84,7 +83,7 @@ public class UserDocumentServiceImpl implements UserDocumentService {
                 for (MultipartFile file : validFiles) {
                     if (isCompleted.get()) {
                         log.debug("Upload cancelled, stopping at file: {}", processedCount);
-                        return;  // Просто выходим, не бросаем исключение
+                        return;
                     }
 
                     String filename = getFilename(file);

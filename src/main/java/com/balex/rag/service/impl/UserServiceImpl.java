@@ -1,6 +1,7 @@
 package com.balex.rag.service.impl;
 
 import com.balex.rag.mapper.UserMapper;
+import com.balex.rag.model.LoadedDocument;
 import com.balex.rag.model.constants.ApiErrorMessage;
 import com.balex.rag.model.dto.UserDTO;
 import com.balex.rag.model.dto.UserSearchDTO;
@@ -15,6 +16,7 @@ import com.balex.rag.model.response.PaginationResponse;
 import com.balex.rag.model.response.RagResponse;
 import com.balex.rag.repo.DocumentRepository;
 import com.balex.rag.repo.UserRepository;
+import com.balex.rag.repo.VectorStoreRepository;
 import com.balex.rag.security.JwtTokenProvider;
 import com.balex.rag.security.validation.AccessValidator;
 import com.balex.rag.service.UserService;
@@ -45,6 +47,7 @@ public class UserServiceImpl implements UserService {
     private final AccessValidator accessValidator;
     private final JwtTokenProvider jwtTokenProvider;
     private final DocumentRepository documentRepository;
+    private final VectorStoreRepository vectorStoreRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -146,18 +149,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public RagResponse<UserInfo> getUserInfo(String token) {
-        if (token == null || token.isBlank()) {
-            throw new InvalidTokenException("Token is empty or null");
-        }
-
-        String cleanToken = token.startsWith("Bearer ")
-                ? token.substring(7)
-                : token;
-
-        String username = jwtTokenProvider.getUsername(cleanToken);
-
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new InvalidTokenException("User not found: " + username));
+        User user = getUserInfoFromToken(token);
 
         List<LoadedDocumentInfo> loadedFiles = documentRepository
                 .findByUserId(user.getId())
@@ -171,6 +163,42 @@ public class UserServiceImpl implements UserService {
                 loadedFiles);
 
         return RagResponse.createSuccessful(userInfo);
+    }
+
+    @Override
+    @Transactional
+    public RagResponse<Integer> deleteUserDocuments(String token) {
+        getUserInfoFromToken(token);
+        User user = getUserInfoFromToken(token);
+
+        List<LoadedDocument> documents = documentRepository.findByUserId(user.getId());
+
+        if (documents.isEmpty()) {
+            return RagResponse.createSuccessful(0);
+        }
+
+        // Удаляем чанки по user_id
+        vectorStoreRepository.deleteByUserId(user.getId().longValue());
+
+        // Удаляем записи из loaded_document
+        documentRepository.deleteAll(documents);
+
+        return RagResponse.createSuccessful(documents.size());
+    }
+
+    private User getUserInfoFromToken(String token) {
+        if (token == null || token.isBlank()) {
+            throw new InvalidTokenException("Token is empty or null");
+        }
+
+        String cleanToken = token.startsWith("Bearer ")
+                ? token.substring(7)
+                : token;
+
+        String username = jwtTokenProvider.getUsername(cleanToken);
+
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new InvalidTokenException("User not found: " + username));
     }
 }
 
