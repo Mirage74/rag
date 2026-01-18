@@ -24,6 +24,9 @@ public class Chat {
 
     private String title;
 
+    @Column(name = "id_owner", nullable = false)
+    private Long idOwner;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

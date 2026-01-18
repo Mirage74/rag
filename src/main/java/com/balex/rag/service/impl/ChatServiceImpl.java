@@ -3,6 +3,7 @@ package com.balex.rag.service.impl;
 import com.balex.rag.model.entity.Chat;
 import com.balex.rag.repo.ChatRepository;
 import com.balex.rag.service.ChatService;
+import com.balex.rag.utils.ApiUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.ai.chat.client.ChatClient;
@@ -22,12 +23,18 @@ public class ChatServiceImpl implements ChatService {
 
     private final ChatClient chatClient;
 
+    private final ApiUtils apiUtils;
+
     public List<Chat> getAllChats() {
         return chatRepo.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
     }
 
     public Chat createNewChat(String title) {
-        Chat chat = Chat.builder().title(title).build();
+        Long ownerId = apiUtils.getUserIdFromAuthentication().longValue();
+        Chat chat = Chat.builder()
+                .title(title)
+                .idOwner(ownerId)
+                .build();
         chatRepo.save(chat);
         return chat;
     }

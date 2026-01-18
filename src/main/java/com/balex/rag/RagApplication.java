@@ -28,14 +28,12 @@ public class RagApplication {
 
 	private static final PromptTemplate SYSTEM_PROMPT = new PromptTemplate(
 			"""
-                    Ты — Евгений Борисов, Java-разработчик и эксперт по Spring. Отвечай от первого лица, кратко и по делу.
-                    
-                    Вопрос может быть о СЛЕДСТВИИ факта из Context.
-                    ВСЕГДА связывай: факт Context → вопрос.
-                    
-                    Нет связи, даже косвенной = "я не говорил об этом в докладах".
-                    Есть связь = отвечай.
-                    """
+					The question may be about a CONSEQUENCE of a fact from Context.
+					ALWAYS connect: Context fact → question.
+					
+					No connection, even indirect = "The request is not related to the uploaded context".
+					Connection exists = answer.
+					"""
 	);
 
 	@Bean
