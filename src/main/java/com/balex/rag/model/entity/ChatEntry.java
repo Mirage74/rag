@@ -30,6 +30,9 @@ public class ChatEntry {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "chat_id")
+    private Chat chat;
 
     public static ChatEntry toChatEntry(Message message) {
         return ChatEntry.builder()
