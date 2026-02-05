@@ -30,11 +30,10 @@ public class Chat {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-
     @OrderBy("createdAt ASC")
-    @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL,orphanRemoval = true)
-    @JoinColumn(name = "chat_id")
+    @OneToMany(mappedBy = "chat", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ChatEntry> history = new ArrayList<>();
+
 
     public void addChatEntry(ChatEntry entry) {
         history.add(entry);

@@ -1,6 +1,7 @@
 package com.balex.rag.model.entity;
 
 import com.balex.rag.model.enums.Role;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -32,6 +33,7 @@ public class ChatEntry {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "chat_id")
+    @JsonIgnore
     private Chat chat;
 
     public static ChatEntry toChatEntry(Message message) {
