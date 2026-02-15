@@ -1,5 +1,6 @@
 package com.balex.rag.advisors.expansion;
 
+import com.balex.rag.config.RagExpansionProperties;
 import lombok.Builder;
 import lombok.Getter;
 import org.springframework.ai.chat.client.ChatClient;
@@ -19,32 +20,24 @@ public class ExpansionQueryAdvisor implements BaseAdvisor {
 
     private static final PromptTemplate template = PromptTemplate.builder()
             .template("""
-                Instruction: Расширь поисковый запрос, добавив наиболее релевантные термины.
-                
-                СПЕЦИАЛИЗАЦИЯ ПО SPRING FRAMEWORK:
-                - Жизненный цикл Spring бинов: конструктор → BeanPostProcessor → PostConstruct → прокси → ContextListener
-                - Технологии: Dynamic Proxy, CGLib, reflection, аннотации, XML конфигурация
-                - Компоненты: BeanFactory, ApplicationContext, BeanDefinition, MBean, JMX
-                - Паттерны: dependency injection, AOP, профилирование, перехват методов
-
-                ПРАВИЛА:
-                1. Сохрани ВСЕ слова из исходного вопроса
-                2. Добавь МАКСИМУМ ПЯТЬ наиболее важных термина
-                3. Выбирай самые специфичные и релевантные слова
-                4. Результат - простой список слов через пробел
-
-                СТРАТЕГИЯ ВЫБОРА:
-                - Приоритет: специализированные термины
-                - Избегай общих слов
-                - Фокусируйся на ключевых понятиях
-
-                ПРИМЕРЫ:
-                "что такое спринг" → "что такое спринг фреймворк Java"
-                "как создать файл" → "как создать файл документ программа"
-
-                Question: {question}
-                Expanded query:
-                """).build();
+            Expand the search query by adding relevant terms.
+            
+            Rules:
+            - Keep all original words
+            - Add up to 5 specific terms
+            - Output ONLY the expanded query, nothing else
+            - No explanations, no formatting, no quotes, no bullet points
+            
+            Examples:
+            Question: what is spring
+            Query: what is spring framework Java dependency injection
+            
+            Question: how to configure security
+            Query: how to configure security Spring Security authentication authorization filter chain
+            
+            Question: {question}
+            Query:
+            """).build();
 
 
     public static final String ENRICHED_QUESTION = "ENRICHED_QUESTION";
@@ -53,9 +46,14 @@ public class ExpansionQueryAdvisor implements BaseAdvisor {
 
     private ChatClient chatClient;
 
-    public static ExpansionQueryAdvisorBuilder builder(ChatModel chatModel) {
+    public static ExpansionQueryAdvisorBuilder builder(ChatModel chatModel, RagExpansionProperties props) {
         return new ExpansionQueryAdvisorBuilder().chatClient(ChatClient.builder(chatModel)
-                .defaultOptions(OllamaOptions.builder().temperature(0.0).topK(1).topP(0.1).repeatPenalty(1.0).build())
+                .defaultOptions(OllamaOptions.builder()
+                        .temperature(props.temperature())
+                        .topK(props.topK())
+                        .topP(props.topP())
+                        .repeatPenalty(props.repeatPenalty())
+                        .build())
                 .build());
     }
 

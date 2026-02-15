@@ -18,11 +18,13 @@ public class PostgresChatMemory implements ChatMemory {
 
     @Override
     public void add(String conversationId, List<Message> messages) {
-        Chat chat = chatMemoryRepository.findById(Long.valueOf(conversationId)).orElseThrow();
-        for (Message message : messages) {
-            chat.addChatEntry(ChatEntry.toChatEntry(message));
-        }
-        chatMemoryRepository.save(chat);
+//        Chat chat = chatMemoryRepository.findById(Long.valueOf(conversationId)).orElseThrow();
+//        for (Message message : messages) {
+//            chat.addChatEntry(ChatEntry.toChatEntry(message));
+//        }
+//        chatMemoryRepository.save(chat);
+
+        // No-op: messages are saved manually in ChatEntryServiceImpl
 
     }
 

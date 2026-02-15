@@ -1,6 +1,8 @@
 package com.balex.rag.controller;
 
+import com.balex.rag.config.RagDefaultsProperties;
 import com.balex.rag.model.constants.ApiLogMessage;
+import com.balex.rag.model.dto.UserEntryRequest;
 import com.balex.rag.model.entity.ChatEntry;
 import com.balex.rag.service.ChatEntryService;
 import com.balex.rag.utils.ApiUtils;
@@ -20,20 +22,19 @@ import java.util.List;
 public class ChatEntryController {
 
     private final ChatEntryService chatEntryService;
-
-    @GetMapping("/{chatId}")
-    public ResponseEntity<List<ChatEntry>> getEntries(@PathVariable Long chatId) {
-        log.trace(ApiLogMessage.NAME_OF_CURRENT_METHOD.getValue(), ApiUtils.getMethodName());
-        List<ChatEntry> entries = chatEntryService.getEntriesByChatId(chatId);
-        return ResponseEntity.ok(entries);
-    }
+    private final RagDefaultsProperties ragDefaults;
 
     @PostMapping("/{chatId}")
     public ResponseEntity<ChatEntry> addUserEntry(
             @PathVariable Long chatId,
-            @RequestParam String content) {
+            @RequestBody UserEntryRequest request) {
         log.trace(ApiLogMessage.NAME_OF_CURRENT_METHOD.getValue(), ApiUtils.getMethodName());
-        ChatEntry entry = chatEntryService.addUserEntry(chatId, content);
+
+        boolean onlyContext = request.onlyContext() != null ? request.onlyContext() : ragDefaults.onlyContext();
+        int topK = request.topK() != null ? request.topK() : ragDefaults.topK();
+        double topP = request.topP() != null ? request.topP() : ragDefaults.topP();
+
+        ChatEntry entry = chatEntryService.addUserEntry(chatId, request.content(), onlyContext, topK, topP);
         return ResponseEntity.ok(entry);
     }
 }

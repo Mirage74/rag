@@ -21,18 +21,15 @@ import static com.balex.rag.advisors.expansion.ExpansionQueryAdvisor.ENRICHED_QU
 @Builder
 public class RagAdvisor implements BaseAdvisor {
 
-    @Builder.Default
     private static final PromptTemplate template = PromptTemplate.builder().template("""
             CONTEXT: {context}
             Question: {question}
             """).build();
 
-
-
+    private final int rerankFetchMultiplier;
+    private final int searchTopK;
+    private final double similarityThreshold;
     private VectorStore vectorStore;
-
-    @Builder.Default
-    private SearchRequest searchRequest = SearchRequest.builder().topK(2).similarityThreshold(0.61).build();
 
     @Getter
     private final int order;
@@ -46,34 +43,35 @@ public class RagAdvisor implements BaseAdvisor {
         String originalUserQuestion = chatClientRequest.prompt().getUserMessage().getText();
         String queryToRag = chatClientRequest.context().getOrDefault(ENRICHED_QUESTION, originalUserQuestion).toString();
 
-        List<Document> documents = vectorStore.similaritySearch(SearchRequest.from(searchRequest).query(queryToRag).topK(searchRequest.getTopK()*2).build());
+        SearchRequest searchRequest = SearchRequest.builder()
+                .query(queryToRag)
+                .topK(searchTopK * rerankFetchMultiplier)
+                .similarityThreshold(similarityThreshold)
+                .build();
 
+        List<Document> documents = vectorStore.similaritySearch(searchRequest);
 
         if (documents == null || documents.isEmpty()) {
-            return chatClientRequest.mutate().context("CONTEXT","ТУТ ПУСТО - ни один документ моя собачка не обнаружила").build();
+            return chatClientRequest.mutate().context("CONTEXT", "EMPTY").build();
         }
 
         BM25RerankEngine rerankEngine = BM25RerankEngine.builder().build();
+        documents = rerankEngine.rerank(documents, queryToRag, searchTopK);
 
-        documents = rerankEngine.rerank(documents,queryToRag,searchRequest.getTopK());
-
-
-
-
-        String llmContext = documents.stream().map(Document::getText).collect(Collectors.joining(System.lineSeparator()));
+        String llmContext = documents.stream()
+                .map(Document::getText)
+                .collect(Collectors.joining(System.lineSeparator()));
 
         String finalUserPrompt = template.render(
-                Map.of("context", llmContext, "question", originalUserQuestion)
-        );
+                Map.of("context", llmContext, "question", originalUserQuestion));
 
-
-        return chatClientRequest.mutate().prompt(chatClientRequest.prompt().augmentUserMessage(finalUserPrompt)).build();
+        return chatClientRequest.mutate()
+                .prompt(chatClientRequest.prompt().augmentUserMessage(finalUserPrompt))
+                .build();
     }
 
     @Override
     public ChatClientResponse after(ChatClientResponse chatClientResponse, AdvisorChain advisorChain) {
         return chatClientResponse;
     }
-
-
 }
